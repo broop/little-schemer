@@ -1,5 +1,6 @@
 #lang scheme
 (require racket/trace)
+(require racket/format)
 
 
 ; chapter 1
@@ -1149,21 +1150,25 @@
            (multiremberT test? (cdr lat)))))))
 
 ; !!! continuation passing style (CPS) https://en.wikipedia.org/wiki/Continuation-passing_style
-(trace-define multirember&co
+(define multirember&co
   (lambda (a lat col) ; col == collector (a continuation) with 2 arguments
     (cond
-      ((null? lat)
+      ((null? lat) ; if lat is null invoked col with 2 empty lists
        (col (quote ()) (quote ())))
-      ((eq? (car lat) a)
+      ((eq? (car lat) a) ; a == car lat
+       (printf "eq: car: ~a, a: ~a\n" (car lat) a)
        (multirember&co a
                        (cdr lat)
-                       (lambda (newlat seen) ; a new continuation wrapping col
+                       ; newlat = x, seen = y
+                       (trace-lambda (newlat seen) ; a new continuation wrapping col
                          (col newlat
                               (cons (car lat) seen)))))
-      (else
+      (else ; a != car lat
+       (printf "neq: car: ~a, a: ~a\n" (car lat) a)
        (multirember&co a
                        (cdr lat)
-                       (lambda (newlat seen)  ; a new continuation wrapping col
+                       ; newlat = x, seen = y
+                       (trace-lambda (newlat seen)  ; a new continuation wrapping col
                          (col (cons (car lat) newlat)
                               seen)))))))
 
@@ -1171,7 +1176,7 @@
 
 (trace-define a-friend
   (lambda (x y)
-    (null? y))) ; returns nullity of the second parameter only
+    (null? y))) ; returns nullity of the second parameter only - false means that a was seen
 
 ;;  (multirember&co 'tuna '(strawberries tuna and swordfish) a-friend)
 
