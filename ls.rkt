@@ -1435,49 +1435,391 @@
       (else (A (sub1 n)
                (A n (sub1 m)))))))
 
+; p157-160: this section describes the Halting Problem.
+; will-stop? can be described but not actually defined
+
 ; p161
+; length of list of length <= 1
+;(
+(lambda (l)
+  (cond
+    ((null? l) 0) ; case: length == 0
+    (else
+     (add1 ; case: length == 1
+      ((lambda (l)
+         (cond
+           ((null? l) 0)
+           (else ; case: length > 1 - eternity...
+            (add1 
+             (eternity (cdr l))))))
+       (cdr l))))))
+;'())
+
+; length of list of length <= 2
+;(
 (lambda (l)
   (cond
     ((null? l) 0)
     (else
      (add1
-      ((lambda (l)
-         (cond
-           ((null? l) 0)
-           (else
-            (add1
-             (eternity (cdr l))))))
-       (cdr l))))))
+          ((lambda (l)
+            (cond
+              ((null? l) 0)
+              (else
+               (add1
+                ((lambda (l)
+                  (cond
+                    ((null? l) 0)
+                    (else
+                     (add1
+                      (eternity (cdr l))))))
+                (cdr l))))))
+     (cdr l))))))
+;'(1 2))
+
+
+; p162
+;(
+((lambda (length) ; create a function with length being the eternity function
+   ;used as a placeholder which is going to get replaced by something useful... :0
+   (lambda (l)
+     (cond
+       ((null? l) 0)
+       (else (add1 (length (cdr l)))))))
+ eternity)
+;'())
+
+; which is equivalent to
+;(
+(lambda (l)
+  (cond
+    ((null? l) 0)
+    (else (add1 (eternity (cdr l))))))
+;'())
+
+; p163
+
+; len <= 1
+; nesting of eternity down one level... allows add1 to get called without invoking eternity
+;(
+((lambda (length)
+   (lambda (l)
+     (cond
+       ((null? l) 0)
+       (else (add1 (length (cdr l)))))))
+   ((lambda (length)
+      (lambda (l)
+        (cond
+          ((null? l) 0)
+          (else (add1 (length (cdr l)))))))
+    eternity))
+;'(1))
+
+; len <= 2
+;(
+((lambda (length)
+   (lambda (l)
+     (cond
+       ((null? l) 0)
+       (else (add1 (length (cdr l)))))))
+   ((lambda (length)
+      (lambda (l)
+        (cond
+          ((null? l) 0)
+          (else (add1 (length (cdr l)))))))
+    ((lambda (length)
+      (lambda (l)
+        (cond
+          ((null? l) 0)
+          (else (add1 (length (cdr l)))))))
+    eternity)))
+;'(1 2))
+
+; with debugging
+;(
+((lambda (length)
+   (printf "building outer with length = ~a~n" length)
+   (lambda (l)
+     (cond
+       ((null? l)
+        (printf "outer base case ~a~n" l)
+        0)
+       (else
+        (printf "outer recurse on (cdr ~a)~n" l)
+        (add1 (length (cdr l)))))))
+ ((lambda (length)
+    (printf "building inner with length = ~a~n" length)
+    (lambda (l)
+      (cond
+        ((null? l)
+         (printf "inner base case ~a~n" l)
+         0)
+        (else
+         (printf "inner recurse on (cdr ~a)~n" l)
+         (add1 (length (cdr l)))))))
+  ((lambda (length)
+    (printf "building inner inner with length = ~a~n" length)
+    (lambda (l)
+      (cond
+        ((null? l)
+         (printf "inner inner base case ~a~n" l)
+         0)
+        (else
+         (printf "inner inner recurse on (cdr ~a)~n" l)
+         (add1 (length (cdr l)))))))
+  eternity)))
+;'(1 2))
+
+; p164 - get rid of the repetition by creating another function
+
+; length = 0 
+;(
+((lambda (mk-length)
+ ; (printf "1. mk-length: ~a\n" mk-length)
+  (mk-length eternity))
+ (lambda (length)
+  ;(printf "2. lambda length called with length: ~a\n" length)
+   (lambda (l)
+     (printf "3. lambda l called with l: ~a:\n" l)
+     (cond
+       ((null? l) 0)
+       (else (add1 (length (cdr l))))))))
+;'())
+
+
+;; The following mk-length variations don't use eternity - they work for len <= 1
+;(
+((lambda (mk-length)
+   (mk-length length)) ; calling mk-length needs some "final" - try scheme.length and see what happens
+ (lambda (length)
+   (lambda (l)
+     (cond
+       ((null? l) 0)
+       (else (add1 (length (cdr l))))))))
+;'(1))
+
+;(
+((lambda (mk-length)
+   (mk-length (lambda (l) 0))) ; calling mk-length needs some "final" - try a lambda returning 0 and see what happens
+ (lambda (length)
+   (lambda (l)
+     (cond
+       ((null? l) 0)
+       (else (add1 (length (cdr l))))))))
+;'())
+
+;(
+((lambda (mk-length)
+   (printf "outer: mk-length = ~a~n" mk-length)
+   (printf "outer: applying mk-length to eternity = ~a~n" eternity)
+   (mk-length eternity))
+ (lambda (length)
+   (printf "mk-length: received length = ~a~n" length)
+   (lambda (l)
+     (printf "mk-length: called with l = ~a~n" l)
+     (cond
+       ((null? l)
+        (printf "mk-length: base case ~a~n" l)
+        0)
+       (else
+        (printf "mk-length: recurse on (cdr ~a)~n" l)
+        (printf "mk-length: invoking captured length on ~a~n" (cdr l))
+        (add1 (length (cdr l))))))))
+;'())
+
+;; Back to the book
+
+; p164 - len <= 1
+;(
+((lambda (mk-length)
+  (mk-length (mk-length eternity)))
+ (lambda (length)
+   (lambda (l)
+     (cond
+       ((null? l) 0)
+       (else (add1 (length (cdr l))))))))
+;'(1))
+
+; len <= 2
+;(
+((lambda (mk-length)
+  (mk-length (mk-length (mk-length eternity))))
+ (lambda (length)
+   (lambda (l)
+     (cond
+       ((null? l) 0)
+       (else (add1 (length (cdr l))))))))
+;'(1 2))
+
+; len <= 3
+;(
+((lambda (mk-length)
+  (mk-length (mk-length (mk-length (mk-length eternity)))))
+ (lambda (length)
+   (lambda (l)
+     (cond
+       ((null? l) 0)
+       (else (add1 (length (cdr l))))))))
+;'(1 2 3))
+
+; len <= 4
+;(
+((lambda (mk-length)
+   (mk-length (mk-length (mk-length (mk-length (mk-length eternity))))))
+ (lambda (length)
+   (lambda (l)
+     (cond
+       ((null? l) 0)
+       (else (add1 (length (cdr l))))))))
+;'(1 2 3 4))
+
+; p165
+; len = 0
+;(
+((lambda (mk-length)
+   (mk-length mk-length))
+ (lambda (mk-length)
+   (lambda (l)
+     (cond
+       ((null? l) 0)
+       (else (add1
+              (mk-length (cdr l))))))))
+;'())
+
+; p166
+; len <= 1
+;(
+((lambda (mk-length)
+   (mk-length mk-length))
+ (lambda (mk-length)
+   (lambda (l)
+     (cond
+       ((null? l) 0)
+       (else (add1
+              ((mk-length eternity)
+               (cdr l))))))))
+; '(1))
+
+; p167
+; remove eternity - keep on passing mk-length in - this should work for all n
+;(
+((lambda (mk-length)
+   (mk-length mk-length))
+ (lambda (mk-length)
+   (lambda (l)
+     (cond
+       ((null? l) 0)
+       (else (add1
+              ((mk-length mk-length)
+               (cdr l))))))))
+;'(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15))
+
+; p168
+; no good - out of memory
+;; ((lambda (mk-length)
+;;    (mk-length mk-length))
+;;  (lambda (mk-length)
+;;    ((lambda (length)
+;;       (lambda (l)
+;;         (cond
+;;           ((null? l) 0)
+;;           (else (add1 (length (cdr l)))))))
+;;     (mk-length mk-length))))
+
+; p170
+; revert to previous 
+((lambda (mk-length)
+   (mk-length mk-length))
+ (lambda (mk-length)
+   (lambda (l)
+     (cond
+       ((null? l) 0)
+       (else (add1
+              ((mk-length mk-length)
+               (cdr l))))))))
+
+; this is a function which will apply x to the application of mk-length to itself
+;(lambda (x)
+;  (mk-length mk-length) x)
+
+; p171
+; now insert this new lambda into our else...
+; don't run it yet
+((lambda (mk-length)
+   (mk-length mk-length))
+ (lambda (mk-length)
+   (lambda (l)
+     (cond
+       ((null? l) 0)
+       (else (add1
+              (lambda (x)
+              ((mk-length mk-length) x))
+               (cdr l)))))))
+
+; now wrap the inner lambda (l) and move out the new lambda from the end...
+;(
+((lambda (mk-length)
+   (mk-length mk-length))
+ (lambda (mk-length)
+   ((lambda (length) ; (*)
+   (lambda (l)
+     (cond
+       ((null? l) 0)
+       (else (add1
+              (length 
+               (cdr l)))))))
+   (lambda (x)
+              ((mk-length mk-length) x)))))
+;'(2 3 4 5))
+
+; p172
+; more of the reorganization...
+; extract the 'length' function (*)
+; NOTE: this is the original 'length' function in mk-length from p164 - that was fantastic :-0
+;(
+((lambda (le)
+   ((lambda (mk-length)
+      (mk-length mk-length))
+    (lambda (mk-length)
+      (le (lambda (x)
+            ((mk-length mk-length) x))))))
+ (lambda (length)
+   (lambda (l)
+     (cond
+       ((null? l) 0)
+       (else (add1 (length (cdr l))))))))
+; '())  ; still works
+;'(1)) ; still works
+;'(a b c d e f g)) ; still works!
+
+; separate and the 'maker' and rename args for generality
+(define Y
+  (lambda (le)
+    ((lambda (f) (f f))
+     (lambda (f)
+       (le (lambda (x) ((f f) x)))))))
 
 ; usage:
-;; ((lambda (l)
-;;   (cond
-;;     ((null? l) 0)
-;;     (else
-;;      (add1
-;;       ((lambda (l)
-;;          (cond
-;;            ((null? l) 0)
-;;            (else
-;;             (add1
-;;              (eternity (cdr l))))))
-;;        (cdr l)))))) '(1))
+;(
+ (Y (lambda (length)
+       (lambda (l)
+         (cond
+           ((null? l) 0)
+           (else (add1 (length (cdr l))))))))
+ ;(build-list 99 values))
 
+; factorial with the Y-combinator
+;(
+ (Y (lambda (fact)
+      (lambda (n)
+        (if (= n 0)
+            1
+            (* n (fact (- n 1)))))))
+;5)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+; p173
+; try this at home...
+; (Y Y)
 
 
 
