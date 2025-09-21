@@ -1608,7 +1608,7 @@
        (else (add1 (length (cdr l))))))))
 ;'())
 
-;(
+(
 ((lambda (mk-length)
    (printf "outer: mk-length = ~a~n" mk-length)
    (printf "outer: applying mk-length to eternity = ~a~n" eternity)
@@ -1616,16 +1616,16 @@
  (lambda (length)
    (printf "mk-length: received length = ~a~n" length)
    (lambda (l)
-     (printf "mk-length: called with l = ~a~n" l)
+     (printf "length: called with l = ~a~n" l)
      (cond
        ((null? l)
-        (printf "mk-length: base case ~a~n" l)
+        (printf "length: base case ~a~n" l)
         0)
        (else
-        (printf "mk-length: recurse on (cdr ~a)~n" l)
-        (printf "mk-length: invoking captured length on ~a~n" (cdr l))
+        (printf "length: recurse on (cdr ~a)~n" l)
+        (printf "length: invoking captured length ~a on ~a~n" length (cdr l))
         (add1 (length (cdr l))))))))
-;'())
+'())
 
 ;; Back to the book
 
@@ -1635,6 +1635,7 @@
   (mk-length (mk-length eternity)))
  (lambda (length)
    (lambda (l)
+     (printf "length got: ~a\n" l)
      (cond
        ((null? l) 0)
        (else (add1 (length (cdr l))))))))
@@ -1792,7 +1793,7 @@
 ;'(1)) ; still works
 ;'(a b c d e f g)) ; still works!
 
-; separate and the 'maker' and rename args for generality
+; separate 'the maker' and rename args for generality
 (define Y
   (lambda (le)
     ((lambda (f) (f f))
@@ -1812,14 +1813,16 @@
 ;(
  (Y (lambda (fact)
       (lambda (n)
-        (if (= n 0)
-            1
-            (* n (fact (- n 1)))))))
+        (cond ((= n 0) 1)
+            (else (* n (fact (- n 1))))))))
 ;5)
 
 ; p173
 ; try this at home...
 ; (Y Y)
+
+; CHAPTER 10
+; 
 
 
 
