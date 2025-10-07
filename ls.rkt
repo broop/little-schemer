@@ -1320,7 +1320,7 @@
       (keep-looking a (pick 1 lat) lat))) ; pick see line 292
 
 ; looking logic: searches lat for a number, n of and tries to match a to lat[n]
-; ex1.  a = caviar, lat: (6 2 4 caviar 5 7 3). For each # in lat (6 2 4 5 7 3) picks position
+; ex1.  a = caviar, lat: (6 2 4 caviar 5 7 3). For each # in lat (6 2 4 5 7 3) picks lo
 ; and tests eq? a 'caviar. Here it is true as 4 is the position of 'caviar
 ; ex2 a = cavair,  (6 2 grits caviar 5 7 3). #f as no number 4 is present in numbers present. 
 
@@ -1703,7 +1703,7 @@
 
 ; p167
 ; remove eternity - keep on passing mk-length in - this should work for all n
-;(
+(
 ((lambda (mk-length)
    (mk-length mk-length))
  (lambda (mk-length)
@@ -1713,7 +1713,7 @@
        (else (add1
               ((mk-length mk-length)
                (cdr l))))))))
-;'(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15))
+'(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15))
 
 ; p168
 ; no good - out of memory
@@ -1729,15 +1729,28 @@
 
 ; p170
 ; revert to previous 
+;(define xxx
+(trace-define add1traced add1)
+
+(
 ((lambda (mk-length)
+   (printf "(1): making a length with ~a\n" mk-length)
    (mk-length mk-length))
  (lambda (mk-length)
+   (printf "(2): length lambda wrapper called with ~a\n" mk-length)
    (lambda (l)
+     (printf "inner length lambda called with l: ~a\n" l)
      (cond
-       ((null? l) 0)
-       (else (add1
-              ((mk-length mk-length)
+       ((null? l)
+        (printf "*** cond null reached returning 0 and unwinding\n")
+        0)
+       (else
+        (printf "else reached with l: ~a\n" l)
+        (add1traced
+              ((mk-length mk-length) ;create another function which applies the cdr of l - redundancy par excellance
                (cdr l))))))))
+'(1 2 3 4 5 6 7))
+;)
 
 ; this is a function which will apply x to the application of mk-length to itself
 ;(lambda (x)
@@ -1758,7 +1771,8 @@
                (cdr l)))))))
 
 ; now wrap the inner lambda (l) and move out the new lambda from the end...
-;(
+; still creating a new lambda on each invocation
+(
 ((lambda (mk-length)
    (mk-length mk-length))
  (lambda (mk-length)
@@ -1771,7 +1785,7 @@
                (cdr l)))))))
    (lambda (x)
               ((mk-length mk-length) x)))))
-;'(2 3 4 5))
+'(2 3 4 5))
 
 ; p172
 ; more of the reorganization...
@@ -1807,7 +1821,7 @@
          (cond
            ((null? l) 0)
            (else (add1 (length (cdr l))))))))
- ;(build-list 99 values))
+;(build-list 99 values))
 
 ; factorial with the Y-combinator
 ;(
@@ -1822,12 +1836,328 @@
 ; (Y Y)
 
 ; CHAPTER 10
-; 
+
+; p175
+(define new-entry build)
+
+; p176
+;sample data
+(define entries '((appetizer entrée beverage) (paté boeuf vin))) 
+
+; lets do something like mk-length with an internal accumulator for the index
+; which we can feed to pick
+(define get-index
+  (lambda (a lat)
+    ((lambda (mk-index)
+       (mk-index mk-index lat 1))
+     (lambda (mk-index lat idx)
+       (cond
+         ((null? lat) 0)
+         ((eq? a (car lat)) idx)
+         (else (mk-index mk-index (cdr lat) (add1 idx))))))))
+
+
+; lookup name in entry (2 lists, key and values) and call entry-f if not found
+; note: entry-f is a dummy for now - it takes shape starting on p177
+(define lookup-in-entry-index-pick
+  (lambda (name entry entry-f)
+    (lookup-in-entry-help-index-pick name ;key
+                          (first entry) ;keys list
+                          (second entry) ;values list
+                          entry-f)))
+ 
+ (define lookup-in-entry-help-index-pick
+   (lambda (name names values entry-f)
+     (cond
+       ((null? names) (entry-f name))
+       (else
+        ((lambda (index)
+          (cond
+            ((zero? index) (entry-f name))
+            (else
+             (pick index values))))
+        (get-index name names)
+        )))))
+;;> (lookup-in-entry-index-pick 'beverage entries (lambda (n) (printf "~a not found\n" n)))
+;;vin
+;;> (lookup-in-entry-index-pick 'entrée entries (lambda (n) (printf "~a not found\n" n)))
+;;boeuf
+
+; now do it the way we are supposed to with only recursion... :-0
+
+(define lookup-in-entry
+  (lambda (name entry entry-f)
+    (lookup-in-entry-help name ;key
+                          (first entry) ;keys list
+                          (second entry) ;values list
+                          entry-f)))
+
+(define lookup-in-entry-help
+  (lambda (name names values entry-f)
+    (cond
+      ((null? names) (entry-f name))
+      ((eq? name (car names)) (car values))
+      (else
+       (lookup-in-entry-help name (cdr names) (cdr values) entry-f)))))
+
+; p176 a table is a list of entries - list of (names values) lists
+
+(define table
+  '(((appetizer entree beverage) (pate boeuf vin))
+   ((beverage dessert) ((food is) (number one with us)))))
+
+; cons an entry onto a table
+(define extend-table cons)
+;; > (extend-table entries table)
+;; (((appetizer entrée beverage) (paté boeuf vin))
+;;  ((appetizer entree beverage) (pate boeuf vin))
+;;  ((beverage dessert) ((food is) (number one with us))))
+
+; p177
+(define lookup-in-table
+  (lambda (name table table-f)
+    (cond
+      ((null? table) (table-f name))
+      (else
+       (lookup-in-entry name (car table)
+                        (lambda (name)
+                          (lookup-in-table name
+                                           (cdr table)
+                                           table-f)))))))
+
+(define table2 '(((entrée dessert)(spaghetti spumoni)) ((appetizer entree beverage) (food tastes good))))
+;;> (lookup-in-table 'entrée table2 (lambda (n) (printf "~a not found\n" n)))
+;;spaghetti
+
+;; > (quote (a b c))
+;; (a b c)
+
+; p178
+;; > (car (quote (a b c)))
+;; a
+;; > (cons 'a
+;;         (cons 'b
+;;               (cons 'c
+;;                     (quote ()))))
+;; (a b c)
+
+(cons car
+        (cons (cons 'quote
+                    (cons
+                     (cons 'a
+                           (cons 'b
+                                 (cons 'c
+                                       (quote ()))))
+                     (quote ())))
+              (quote ())))
+;(#<procedure:car> '(a b c))
+
+(define form (cons car
+        (cons (cons 'quote
+                    (cons
+                     (cons 'a
+                           (cons 'b
+                                 (cons 'c
+                                       (quote ()))))
+                     (quote ())))
+              (quote ()))))
+
+; (eval form (make-base-namespace)) ; returns a using racket environment trick
+
+; const action
+(define *const
+  (lambda ( e table)
+    (cond
+      ((number? e) e)
+      ((eq? e #t) #t)
+      ((eq? e #f) #f)
+      (else (build (quote primitive) e)))))
 
 
 
+(define initial-table
+  (lambda (name)
+    (car (quote ()))))
+
+(define atom-to-action
+  (lambda (e)
+    (cond
+      ((number? e) *const)
+      ((eq? e #t) *const)
+      ((eq? e #f) *const)
+      ((eq? e (quote cons)) *const)
+      ((eq? e (quote car)) *const)
+      ((eq? e (quote cdr)) *const)
+      ((eq? e (quote null?)) *const)
+      ((eq? e (quote eq?)) *const)
+      ((eq? e (quote atom?)) *const)
+      ((eq? e (quote zero?)) *const)
+      ((eq? e (quote add1)) *const)
+      ((eq? e (quote sub1)) *const)
+      ((eq? e (quote number?)) *const)
+      (else *identifier))))
+
+(define list-to-action
+  (lambda (e)
+    (cond
+      ((atom? (car e))
+      (cond
+        ((eq? (car e) (quote quote)) *quote)
+        ((eq? (car e) (quote lambda)) *lambda)
+        ((eq? (car e) (quote cond)) *cond)
+        (else *application)))
+    (else *application))))
+
+; p181
+(define expression-to-action
+  (lambda (e)
+    (cond
+      ((atom? e) (atom-to-action e))
+      (else (list-to-action e)))))
+
+(define meaning
+  (lambda (e table)
+    ((expression-to-action e) e table)))
+
+; p183
+(define *quote
+  (lambda (e table)
+    (text-of e)))
+
+(define text-of second)
+
+(define *identifier
+  (lambda (e table)
+    (lookup-in-table e table  initial-table)))
+
+; p184
+(define *lambda
+  (lambda (e table)
+    (build (quote non-primitive)
+           (cons table (cdr e)))))
+
+(define table-of first)
+(define formals-of second)
+(define body-of third)
+
+
+; p185
+(define evcon
+  (lambda (lines table)
+    (cond
+      ((else? (question-of ( car lines)))
+       (meaning (answer-of ( car lines))
+                table))
+      ((meaning (question-of ( car lines))
+                table)
+       (meaning (answer-of ( car lines))
+                table))
+      (else (evcon ( cdr lines) table)))))
+
+(define else?
+  (lambda (x)
+    (cond
+      ((atom? x) (eq? x (quote else)))
+      (else #f))))
+
+(define question-of first)
+(define answer-of second)
+
+(define *cond
+  (lambda (e table)
+    (evcon (cond-lines-of e) table)))
+
+(define cond-lines-of cdr)
+
+; p186
+(define evlis
+  (lambda (args table)
+    (cond
+      ((null? args) (quote ()))
+      (else
+       (cons (meaning (car args) table)
+             (evlis (cdr args) table))))))
+
+(define *application
+  (lambda (e table)
+    (apply
+     (meaning (function-of e) table)
+     (evlis (arguments-of e) table))))
+
+; p187
+(define function-of car)
+(define arguments-of cdr)
+
+(define primitive?
+  (lambda (l)
+    (eq? (first l) (quote primitive))))
+
+(define non-primitive?
+  (lambda (l)
+    (eq? (first l) (quote non-primitive))))
+
+(define apply
+  (lambda (fun vals)
+    (cond
+      ((primitive? fun)
+       (apply-primitive (second fun) vals))
+      ((non-primitive? fun)
+       (apply-closure
+        (second fun) vals)))))
+
+; p188
+(define apply-closure
+  (lambda (closure vals)
+    (meaning (body-of closure)
+             (extend-table
+              (new-entry
+               (formals-of closure)
+               vals)
+              (table-of closure)))))
 
 
 
+(define apply-primitive
+  (lambda (name vals)
+    (cond
+      ((eq? name (quote cons))
+       (cons (first vals) (second vals)))
+      ((eq? name (quote car))
+       (car (first vals)))
+      ((eq? name (quote cdr))
+       (cdr (first vals)))
+      ((eq? name (quote null?))
+       (null? (first vals)))
+      ((eq? name (quote eq?))
+       (eq? (first vals) (second vals)))
+      ((eq? name (quote atom?))
+       (atom? (first vals)))
+      ((eq? name (quote zero?))
+       (zero? (first vals)))
+      ((eq? name (quote add1))
+       (add1 (first vals)))
+      ((eq? name (quote sub1))
+       (sub1 (first vals)))
+      ((eq? name (quote number?))
+       (number? (first vals))))))
 
+
+
+(define :atom?
+  (lambda (x)
+    (cond
+      ((atom? x ) #t)
+      ((null? x ) #f)
+      ((eq? (car x) (quote primitive)) #t)
+      ((eq? (car x) (quote non-primitive)) #t )
+      (else #f))))
+
+; p189-190
+; new table for meaning
+(define new-table '(
+                    ((x y) ((a b c) (d e f)))
+                    ((u v w)
+                     (1 2 3))
+                    ((x y z)
+                     (4 5 6))))
 
