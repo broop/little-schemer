@@ -616,28 +616,6 @@
        (and (numbered2? (car aexp))
             (numbered2? (car (cdr (cdr aexp))))))))) ; chop off the first two and return the 3rd
 
-
-(define numbered3?
-  (lambda (aexp)
-    (cond
-      ;; Base case: if `aexp` is an atom, it must be a number.
-      ((atom? aexp) (number? aexp))
-
-      ;; Recursive case: if `aexp` is a compound expression, process it.
-      ((list? aexp)
-       (let ((op (cadr aexp))             ; Extract the operator
-             (left (car aexp))            ; Left operand
-             (right (caddr aexp)))        ; Right operand
-         (and (or (eq? op '+)             ; Valid operators
-                  (eq? op 'x)
-                  (eq? op '^))
-              (numbered3? left)            ; Check left operand recursively
-              (numbered3? right))))        ; Check right operand recursively
-
-      ;; Invalid case: anything else is not a valid arithmetic expression.
-      (else #f))))
-
-
 (define value
   (lambda (nexp)
     (cond
