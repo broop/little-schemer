@@ -1,5 +1,3 @@
-; The Little Schemer - Pure Scheme
-
 ; chapter 1
 (define atom?
   (lambda (x)
@@ -331,6 +329,7 @@
       ((or (number? a1) (number? a2)) #f )
       (else (eq? a1 a2)))))
 
+; TODO check this one and the one? variants
 (define occur
   (lambda (a lat)
     (cond
@@ -616,6 +615,28 @@
        (and (numbered2? (car aexp))
             (numbered2? (car (cdr (cdr aexp))))))))) ; chop off the first two and return the 3rd
 
+
+(define numbered3?
+  (lambda (aexp)
+    (cond
+      ;; Base case: if `aexp` is an atom, it must be a number.
+      ((atom? aexp) (number? aexp))
+
+      ;; Recursive case: if `aexp` is a compound expression, process it.
+      ((list? aexp)
+       (let ((op (cadr aexp))             ; Extract the operator
+             (left (car aexp))            ; Left operand
+             (right (caddr aexp)))        ; Right operand
+         (and (or (eq? op '+)             ; Valid operators
+                  (eq? op 'x)
+                  (eq? op '^))
+              (numbered3? left)            ; Check left operand recursively
+              (numbered3? right))))        ; Check right operand recursively
+
+      ;; Invalid case: anything else is not a valid arithmetic expression.
+      (else #f))))
+
+
 (define value
   (lambda (nexp)
     (cond
@@ -647,6 +668,45 @@
       ((eq? (car (cdr nexp)) (quote -))
        (- (value (car nexp))
           (value (car (cdr (cdr nexp))))))
+      (else #f))))
+
+(define value3 ; directly eval the operands
+  (lambda (nexp)
+    (cond
+      ((atom? nexp) nexp)
+      ((member? (car (cdr nexp)) '(+ x ^ -))
+       (eval (car (cdr nexp)) (value3 (car nexp)) (value3 (car (cdr (cdr nexp))))))
+      (else #f))))
+
+
+(define value4
+  (lambda (nexp)
+    (cond
+      ;; Base case: if `nexp` is atomic, return it as is.
+      ((atom? nexp) nexp)
+
+      ;; Recursive case: dynamically evaluate the operator with eval.
+      ((member? (car (cdr nexp)) '(+ x ^ -))
+       (eval (cons (car (cdr nexp))           ; Operator
+                   (list (value4 (car nexp)) ; Left operand
+                         (value4 (car (cdr (cdr nexp)))))))) ; Right operand
+
+      ;; Default case: unknown input.
+      (else #f))))
+
+(define value5 ; cons only
+  (lambda (nexp)
+    (cond
+      ;; Base case: if `nexp` is atomic, return it as is.
+      ((atom? nexp) nexp)
+
+      ;; Recursive case: dynamically evaluate the operator with eval.
+      ((member (car (cdr nexp)) '(+ x ^ -))
+       (eval (cons (car (cdr nexp))              ; Operator
+                   (cons (value5 (car nexp))     ; Left operand
+                         (cons (value5 (car (cdr (cdr nexp)))) '()))))) ; Right operand
+
+      ;; Default case: unknown input.
       (else #f))))
 
 ; p105
@@ -710,6 +770,23 @@
        (cond
          ((member? (car lat) (cdr lat)) #f)
           (else (set? (cdr lat))))))))
+
+
+; iterative version of *
+(define *-iter
+  (lambda (n m)
+    (let loop ((acc 0) (count m))
+      (if (zero? count)
+          acc
+          (loop (+ acc n) (sub1 count))))))
+
+; REMINDER: from above
+; (define member?
+;  (lambda (a lat)
+;    (cond
+;      ((null? lat) #f)
+;      (else (or (eq? (car lat) a)
+;                (member? a (cdr lat)))))))
 
 
 (define set?
@@ -1098,10 +1175,13 @@
 ; https://stackoverflow.com/a/7005024
 (define multirember&co
   (lambda (a lat col) ; col == collector (a continuation) with 2 arguments
+    (printf "incoming -> a: ~a, lat: ~a, col: ~a\n" a lat col)
     (cond
       ((null? lat) ; if lat is null invoked col with 2 empty lists
+       (printf "NULL\n")
        (col (quote ()) (quote ())))
       ((eq? (car lat) a) ; Case: (car lat) == a
+       (printf "eq: car: ~a, a: ~a\n" (car lat) a)
        (multirember&co a
                        (cdr lat)
                        ; newlat = x, seen = y
@@ -1109,6 +1189,7 @@
                          (col newlat
                               (cons (car lat) seen)))))
       (else ; Case: (car lat) != a
+       (printf "neq: car: ~a, a: ~a\n" (car lat) a)
        (multirember&co a
                        (cdr lat)
                        ; newlat = x, seen = y
@@ -1223,6 +1304,7 @@
 ; p146
 (define the-last-friend
   (lambda (newl product sum)
+    (display "XXX")
     (cons sum
           (cons product
                 newl))))
@@ -1311,8 +1393,11 @@
 (define shuffle
   (lambda (pora)
     (cond
-      ((atom? pora) pora)
+      ((atom? pora)
+      (printf "atom\n") ; base case
+       pora)
       ((a-pair? (first pora))
+       (printf "a-pair\n")
        (shuffle (revpair pora)))
       (else
        (build (first pora)
@@ -1351,8 +1436,376 @@
 ; p157-160: this section describes the Halting Problem.
 ; will-stop? can be described but not actually defined
 
+; p161
+; length of list of length <= 1
+;(
+(lambda (l)
+  (cond
+    ((null? l) 0) ; case: length == 0
+    (else
+     (add1 ; case: length == 1
+      ((lambda (l)
+         (cond
+           ((null? l) 0)
+           (else ; case: length > 1 - eternity...
+            (add1
+             (eternity (cdr l))))))
+       (cdr l))))))
+;'())
+
+; length of list of length <= 2
+;(
+(lambda (l)
+  (cond
+    ((null? l) 0)
+    (else
+     (add1
+          ((lambda (l)
+            (cond
+              ((null? l) 0)
+              (else
+               (add1
+                ((lambda (l)
+                  (cond
+                    ((null? l) 0)
+                    (else
+                     (add1
+                      (eternity (cdr l))))))
+                (cdr l))))))
+     (cdr l))))))
+;'(1 2))
+
+
+; p162
+;(
+((lambda (length) ; create a function with length being the eternity function
+   ;used as a placeholder which is going to get replaced by something useful... :0
+   (lambda (l)
+     (cond
+       ((null? l) 0)
+       (else (add1 (length (cdr l)))))))
+ eternity)
+;'())
+
+; which is equivalent to
+;(
+(lambda (l)
+  (cond
+    ((null? l) 0)
+    (else (add1 (eternity (cdr l))))))
+;'())
+
+; p163
+
+; len <= 1
+; nesting of eternity down one level... allows add1 to get called without invoking eternity
+;(
+((lambda (length)
+   (lambda (l)
+     (cond
+       ((null? l) 0)
+       (else (add1 (length (cdr l)))))))
+   ((lambda (length)
+      (lambda (l)
+        (cond
+          ((null? l) 0)
+          (else (add1 (length (cdr l)))))))
+    eternity))
+;'(1))
+
+; len <= 2
+;(
+((lambda (length)
+   (lambda (l)
+     (cond
+       ((null? l) 0)
+       (else (add1 (length (cdr l)))))))
+   ((lambda (length)
+      (lambda (l)
+        (cond
+          ((null? l) 0)
+          (else (add1 (length (cdr l)))))))
+    ((lambda (length)
+      (lambda (l)
+        (cond
+          ((null? l) 0)
+          (else (add1 (length (cdr l)))))))
+    eternity)))
+;'(1 2))
+
+; with debugging
+;(
+((lambda (length)
+   (printf "building outer with length = ~a~n" length)
+   (lambda (l)
+     (cond
+       ((null? l)
+        (printf "outer base case ~a~n" l)
+        0)
+       (else
+        (printf "outer recurse on (cdr ~a)~n" l)
+        (add1 (length (cdr l)))))))
+ ((lambda (length)
+    (printf "building inner with length = ~a~n" length)
+    (lambda (l)
+      (cond
+        ((null? l)
+         (printf "inner base case ~a~n" l)
+         0)
+        (else
+         (printf "inner recurse on (cdr ~a)~n" l)
+         (add1 (length (cdr l)))))))
+  ((lambda (length)
+    (printf "building inner inner with length = ~a~n" length)
+    (lambda (l)
+      (cond
+        ((null? l)
+         (printf "inner inner base case ~a~n" l)
+         0)
+        (else
+         (printf "inner inner recurse on (cdr ~a)~n" l)
+         (add1 (length (cdr l)))))))
+  eternity)))
+;'(1 2))
+
+; p164 - get rid of the repetition by creating another function
+
+; length = 0
+;(
+((lambda (mk-length)
+ ; (printf "1. mk-length: ~a\n" mk-length)
+  (mk-length eternity))
+ (lambda (length)
+  ;(printf "2. lambda length called with length: ~a\n" length)
+   (lambda (l)
+     (printf "3. lambda l called with l: ~a:\n" l)
+     (cond
+       ((null? l) 0)
+       (else (add1 (length (cdr l))))))))
+;'())
+
+
+;; The following mk-length variations don't use eternity - they work for len <= 1
+;(
+((lambda (mk-length)
+   (mk-length length)) ; calling mk-length needs some "final" - try scheme.length and see what happens
+ (lambda (length)
+   (lambda (l)
+     (cond
+       ((null? l) 0)
+       (else (add1 (length (cdr l))))))))
+;'(1))
+
+;(
+((lambda (mk-length)
+   (mk-length (lambda (l) 0))) ; calling mk-length needs some "final" - try a lambda returning 0 and see what happens
+ (lambda (length)
+   (lambda (l)
+     (cond
+       ((null? l) 0)
+       (else (add1 (length (cdr l))))))))
+;'())
+
+(
+((lambda (mk-length)
+   (printf "outer: mk-length = ~a~n" mk-length)
+   (printf "outer: applying mk-length to eternity = ~a~n" eternity)
+   (mk-length eternity))
+ (lambda (length)
+   (printf "mk-length: received length = ~a~n" length)
+   (lambda (l)
+     (printf "length: called with l = ~a~n" l)
+     (cond
+       ((null? l)
+        (printf "length: base case ~a~n" l)
+        0)
+       (else
+        (printf "length: recurse on (cdr ~a)~n" l)
+        (printf "length: invoking captured length ~a on ~a~n" length (cdr l))
+        (add1 (length (cdr l))))))))
+'())
+
+;; Back to the book
+
+; p164 - len <= 1
+;(
+((lambda (mk-length)
+  (mk-length (mk-length eternity)))
+ (lambda (length)
+   (lambda (l)
+     (printf "length got: ~a\n" l)
+     (cond
+       ((null? l) 0)
+       (else (add1 (length (cdr l))))))))
+;'(1))
+
+; len <= 2
+;(
+((lambda (mk-length)
+  (mk-length (mk-length (mk-length eternity))))
+ (lambda (length)
+   (lambda (l)
+     (cond
+       ((null? l) 0)
+       (else (add1 (length (cdr l))))))))
+;'(1 2))
+
+; len <= 3
+;(
+((lambda (mk-length)
+  (mk-length (mk-length (mk-length (mk-length eternity)))))
+ (lambda (length)
+   (lambda (l)
+     (cond
+       ((null? l) 0)
+       (else (add1 (length (cdr l))))))))
+;'(1 2 3))
+
+; len <= 4
+;(
+((lambda (mk-length)
+   (mk-length (mk-length (mk-length (mk-length (mk-length eternity))))))
+ (lambda (length)
+   (lambda (l)
+     (cond
+       ((null? l) 0)
+       (else (add1 (length (cdr l))))))))
+;'(1 2 3 4))
+
+; p165
+; len = 0
+;(
+((lambda (mk-length)
+   (mk-length mk-length))
+ (lambda (mk-length)
+   (lambda (l)
+     (cond
+       ((null? l) 0)
+       (else (add1
+              (mk-length (cdr l))))))))
+;'())
+
+; p166
+; len <= 1
+;(
+((lambda (mk-length)
+   (mk-length mk-length))
+ (lambda (mk-length)
+   (lambda (l)
+     (cond
+       ((null? l) 0)
+       (else (add1
+              ((mk-length eternity)
+               (cdr l))))))))
+; '(1))
+
+; p167
+; remove eternity - keep on passing mk-length in - this should work for all n
+(
+((lambda (mk-length)
+   (mk-length mk-length))
+ (lambda (mk-length)
+   (lambda (l)
+     (cond
+       ((null? l) 0)
+       (else (add1
+              ((mk-length mk-length)
+               (cdr l))))))))
+'(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15))
+
+; p168
+; no good - out of memory
+;; ((lambda (mk-length)
+;;    (mk-length mk-length))
+;;  (lambda (mk-length)
+;;    ((lambda (length)
+;;       (lambda (l)
+;;         (cond
+;;           ((null? l) 0)
+;;           (else (add1 (length (cdr l)))))))
+;;     (mk-length mk-length))))
+
+; p170
+; revert to previous
+;(define xxx
+(define add1traced add1)
+
+(
+((lambda (mk-length)
+   (printf "(1): making a length with ~a\n" mk-length)
+   (mk-length mk-length))
+ (lambda (mk-length)
+   (printf "(2): length lambda wrapper called with ~a\n" mk-length)
+   (lambda (l)
+     (printf "inner length lambda called with l: ~a\n" l)
+     (cond
+       ((null? l)
+        (printf "*** cond null reached returning 0 and unwinding\n")
+        0)
+       (else
+        (printf "else reached with l: ~a\n" l)
+        (add1traced
+              ((mk-length mk-length) ;create another function which applies the cdr of l - redundancy par excellance
+               (cdr l))))))))
+'(1 2 3 4 5 6 7))
+;)
+
+; this is a function which will apply x to the application of mk-length to itself
+;(lambda (x)
+;  (mk-length mk-length) x)
+
+; p171
+; now insert this new lambda into our else...
+; don't run it yet
+((lambda (mk-length)
+   (mk-length mk-length))
+ (lambda (mk-length)
+   (lambda (l)
+     (cond
+       ((null? l) 0)
+       (else (add1
+              (lambda (x)
+              ((mk-length mk-length) x))
+               (cdr l)))))))
+
+; now wrap the inner lambda (l) and move out the new lambda from the end...
+; still creating a new lambda on each invocation
+(
+((lambda (mk-length)
+   (mk-length mk-length))
+ (lambda (mk-length)
+   ((lambda (length) ; (*)
+   (lambda (l)
+     (cond
+       ((null? l) 0)
+       (else (add1
+              (length
+               (cdr l)))))))
+   (lambda (x)
+              ((mk-length mk-length) x)))))
+'(2 3 4 5))
+
 ; p172
-; Y-Combinator
+; more of the reorganization...
+; extract the 'length' function (*)
+; NOTE: this is the original 'length' function in mk-length from p164 - that was fantastic :-0
+;(
+((lambda (le)
+   ((lambda (mk-length)
+      (mk-length mk-length))
+    (lambda (mk-length)
+      (le (lambda (x)
+            ((mk-length mk-length) x))))))
+ (lambda (length)
+   (lambda (l)
+     (cond
+       ((null? l) 0)
+       (else (add1 (length (cdr l))))))))
+; '())  ; still works
+;'(1)) ; still works
+;'(a b c d e f g)) ; still works!
+
+; separate 'the maker' and rename args for generality
 (define Y
   (lambda (le)
     ((lambda (f) (f f))
@@ -1360,17 +1813,31 @@
        (le (lambda (x) ((f f) x)))))))
 
 ; usage:
-; (Y (lambda (length)
-;       (lambda (l)
-;         (cond
-;           ((null? l) 0)
-;           (else (add1 (length (cdr l))))))))
+;(
+ (Y (lambda (length)
+       (lambda (l)
+         (cond
+           ((null? l) 0)
+           (else (add1 (length (cdr l))))))))
+;(build-list 99 values))
 
 ; factorial with the Y-combinator
-; (Y (lambda (fact)
-;      (lambda (n)
-;        (cond ((= n 0) 1)
-;            (else (* n (fact (- n 1))))))))
+(
+ (Y (lambda (fact)
+      (lambda (n)
+        (cond ((= n 0) 1)
+            (else (* n (fact (- n 1))))))))
+5)
+
+(define !
+    (Y (lambda (fact)
+         (lambda (n)
+           (cond ((= n 0) 1)
+                 (else (* n (fact (- n 1)))))))))
+
+; p173
+; try this at home...
+; (Y Y)
 
 ; CHAPTER 10
 
@@ -1415,6 +1882,10 @@
              (pick index values))))
         (get-index name names)
         )))))
+;;> (lookup-in-entry-index-pick 'beverage entries (lambda (n) (printf "~a not found\n" n)))
+;;vin
+;;> (lookup-in-entry-index-pick 'entrée entries (lambda (n) (printf "~a not found\n" n)))
+;;boeuf
 
 ; now do it the way we are supposed to with only recursion... :-0
 
@@ -1441,6 +1912,10 @@
 
 ; cons an entry onto a table
 (define extend-table cons)
+;; > (extend-table entries table)
+;; (((appetizer entrée beverage) (paté boeuf vin))
+;;  ((appetizer entree beverage) (pate boeuf vin))
+;;  ((beverage dessert) ((food is) (number one with us))))
 
 ; p177
 (define lookup-in-table
@@ -1455,6 +1930,43 @@
                                            table-f)))))))
 
 (define table2 '(((entrée dessert)(spaghetti spumoni)) ((appetizer entree beverage) (food tastes good))))
+;;> (lookup-in-table 'entrée table2 (lambda (n) (printf "~a not found\n" n)))
+;;spaghetti
+
+;; > (quote (a b c))
+;; (a b c)
+
+; p178
+;; > (car (quote (a b c)))
+;; a
+;; > (cons 'a
+;;         (cons 'b
+;;               (cons 'c
+;;                     (quote ()))))
+;; (a b c)
+
+(cons car
+        (cons (cons 'quote
+                    (cons
+                     (cons 'a
+                           (cons 'b
+                                 (cons 'c
+                                       (quote ()))))
+                     (quote ())))
+              (quote ())))
+;(#<procedure:car> '(a b c))
+
+(define form (cons car
+        (cons (cons 'quote
+                    (cons
+                     (cons 'a
+                           (cons 'b
+                                 (cons 'c
+                                       (quote ()))))
+                     (quote ())))
+              (quote ()))))
+
+; (eval form (make-base-namespace)) ; returns a using racket environment trick
 
 ; const action
 (define *const
@@ -1652,3 +2164,5 @@
                      (1 2 3))
                     ((x y z)
                      (4 5 6))))
+
+
