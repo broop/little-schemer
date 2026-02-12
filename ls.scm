@@ -158,11 +158,11 @@
 ; Chap 4
 
 ;p60
-(define +
-  (lambda (n m)
-    (cond
-      ((zero? m) n)
-    (else (add1 (+ n (sub1 m)))))))
+;(define +
+;  (lambda (n m)
+;    (cond
+;      ((zero? m) n)
+;    (else (add1 (+ n (sub1 m)))))))
 
 ;p61
 (define -
@@ -180,12 +180,12 @@
        (+ (car tup) (addtup (cdr tup)))))))
 
 ;p65
-(define *
-  (lambda (n m)
-    (cond
-      ((zero? m) 0)
-      (else
-       (+ n (* n (sub1 m)))))))
+;(define *
+;  (lambda (n m)
+;    (cond
+;      ((zero? m) 0)
+;      (else
+;       (+ n (* n (sub1 m)))))))
 
 ;p65
 (define x
@@ -1506,7 +1506,7 @@
 ; with debugging
 ;(
 ((lambda (length)
-   (printf "building outer with length = ~a~n" length)
+   ;(printf "building outer with length = ~a~n" length)
    (lambda (l)
      (cond
        ((null? l)
@@ -1516,7 +1516,7 @@
         (printf "outer recurse on (cdr ~a)~n" l)
         (add1 (length (cdr l)))))))
  ((lambda (length)
-    (printf "building inner with length = ~a~n" length)
+    ;(printf "building inner with length = ~a~n" length)
     (lambda (l)
       (cond
         ((null? l)
@@ -1526,7 +1526,7 @@
          (printf "inner recurse on (cdr ~a)~n" l)
          (add1 (length (cdr l)))))))
   ((lambda (length)
-    (printf "building inner inner with length = ~a~n" length)
+    ;(printf "building inner inner with length = ~a" length)
     (lambda (l)
       (cond
         ((null? l)
@@ -1578,13 +1578,13 @@
 
 (
 ((lambda (mk-length)
-   (printf "outer: mk-length = ~a~n" mk-length)
-   (printf "outer: applying mk-length to eternity = ~a~n" eternity)
+  ; (printf "outer: mk-length = ~a~n" mk-length)
+  ; (printf "outer: applying mk-length to eternity = ~a~n" eternity)
    (mk-length eternity))
  (lambda (length)
-   (printf "mk-length: received length = ~a~n" length)
+   ;(printf "mk-length: received length = ~a~n" length)
    (lambda (l)
-     (printf "length: called with l = ~a~n" l)
+     ;(printf "length: called with l = ~a~n" l)
      (cond
        ((null? l)
         (printf "length: base case ~a~n" l)
@@ -1702,12 +1702,12 @@
 
 (
 ((lambda (mk-length)
-   (printf "(1): making a length with ~a\n" mk-length)
+   ;(printf "(1): making a length with ~a\n" mk-length)
    (mk-length mk-length))
  (lambda (mk-length)
-   (printf "(2): length lambda wrapper called with ~a\n" mk-length)
+   ;(printf "(2): length lambda wrapper called with ~a\n" mk-length)
    (lambda (l)
-     (printf "inner length lambda called with l: ~a\n" l)
+     ;(printf "inner length lambda called with l: ~a\n" l)
      (cond
        ((null? l)
         (printf "*** cond null reached returning 0 and unwinding\n")
@@ -1989,6 +1989,11 @@
       ((atom? e) (atom-to-action e))
       (else (list-to-action e)))))
 
+;p182
+(define value
+  (lambda (e)
+    (meaning e (quote ()))))
+
 (define meaning
   (lambda (e table)
     ((expression-to-action e) e table)))
@@ -2134,5 +2139,3 @@
                      (1 2 3))
                     ((x y z)
                      (4 5 6))))
-
-
